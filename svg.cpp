@@ -6,6 +6,34 @@ namespace svg {
 using namespace std;
 using namespace std::literals;
 
+ostream& operator<<(ostream& out, StrokeLineCap stroke_linecap) {
+    switch (stroke_linecap) {
+        case StrokeLineCap::BUTT:
+            return out << "butt"s;
+        case StrokeLineCap::ROUND:
+            return out << "round"s;
+        case StrokeLineCap::SQUARE:
+            return out << "square"s;
+    }
+    return out;
+}
+
+ostream& operator<<(ostream& out, StrokeLineJoin stroke_linejoin) {
+    switch (stroke_linejoin) {
+        case StrokeLineJoin::ROUND:
+            return out << "round"s;
+        case StrokeLineJoin::ARCS:
+            return out << "arcs"s;
+        case StrokeLineJoin::BEVEL:
+            return out << "bevel"s;
+        case StrokeLineJoin::MITER:
+            return out << "miter"s;
+        case StrokeLineJoin::MITER_CLIP:
+            return out << "miter-clip"s;
+    }
+    return out;
+}
+
 void Object::Render(const RenderContext& context) const {
     context.RenderIndent();
 
@@ -31,6 +59,7 @@ void Circle::RenderObject(const RenderContext& context) const {
     auto& out = context.out;
     out << "<circle cx=\""sv << center_.x << "\" cy=\""sv << center_.y << "\" "sv;
     out << "r=\""sv << radius_ << "\" "sv;
+    RenderAttrs(out);
     out << "/>"sv;
 }
 
@@ -52,7 +81,9 @@ void Polyline::RenderObject(const RenderContext& context) const {
         isFirst = false;
         out << point.x << ","sv << point.y;
     }
-    out << "\" />"sv;
+    out << "\" "s;
+    RenderAttrs(out);
+    out << "/>"sv;
 }
 
 // ---------- Text ------------------
@@ -94,12 +125,16 @@ void Text::RenderObject(const RenderContext& context) const {
         << " dx=\""sv << offset_.x << "\""sv
         << " dy=\""sv << offset_.y << "\""sv
         << " font-size=\""sv << size_ << "\""sv;
-        if (!font_family_.empty()) {
-            out << " font-family=\""sv << font_family_ << "\""sv;
+
+        if (font_family_) {
+            out << " font-family=\""sv << *font_family_ << "\""sv;
         }
-        if (!font_weight_.empty()) {
-            out << " font-weight=\""sv << font_weight_ << "\""sv;
+        if (font_weight_) {
+            out << " font-weight=\""sv << *font_weight_ << "\""sv;
         }
+
+        RenderAttrs(out);
+
         out << ">"sv;
 
         for (const auto& c : data_) {

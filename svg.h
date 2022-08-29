@@ -5,8 +5,35 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 namespace svg {
+
+using Color = std::string;
+
+// Объявив в заголовочном файле константу со спецификатором inline,
+// мы сделаем так, что она будет одной на все единицы трансляции,
+// которые подключают этот заголовок.
+// В противном случае каждая единица трансляции будет использовать свою копию этой константы
+inline const Color NoneColor{"none"};
+
+enum class StrokeLineCap {
+    BUTT,
+    ROUND,
+    SQUARE,
+};
+
+std::ostream& operator<<(std::ostream& out, StrokeLineCap stroke_linecap);
+
+enum class StrokeLineJoin {
+    ARCS,
+    BEVEL,
+    MITER,
+    MITER_CLIP,
+    ROUND,
+};
+
+std::ostream& operator<<(std::ostream& out, StrokeLineJoin stroke_linejoin);
 
 struct Point {
     Point() = default;
@@ -76,6 +103,67 @@ protected:
     ~ObjectContainer() = default;
 };
 
+template <typename Owner>
+class PathProps {
+public:
+    Owner& SetFillColor(Color color) {
+        fill_color_ = std::move(color);
+        return AsOwner();
+    }
+    Owner& SetStrokeColor(Color color) {
+        stroke_color_ = std::move(color);
+        return AsOwner();
+    }
+    Owner& SetStrokeLineJoin(StrokeLineJoin stroke_linejoin) {
+        stroke_linejoin_ = stroke_linejoin;
+        return AsOwner();
+    }
+    Owner& SetStrokeLineCap(StrokeLineCap stroke_linecap) {
+        stroke_linecap_ = stroke_linecap;
+        return AsOwner();
+    }
+    Owner& SetStrokeWidth(double stroke_width) {
+        stroke_width_ = stroke_width;
+        return AsOwner();
+    }
+
+protected:
+    ~PathProps() = default;
+
+    void RenderAttrs(std::ostream& out) const {
+        using namespace std::literals;
+
+        if (fill_color_) {
+            out << " fill=\""sv << *fill_color_ << "\""sv;
+        }
+        if (stroke_color_) {
+            out << " stroke=\""sv << *stroke_color_ << "\""sv;
+        }
+        if (stroke_width_) {
+            out << " stroke-width=\""sv << *stroke_width_ << "\""sv;
+        }
+        if (stroke_linecap_) {
+            out << " stroke-linecap=\""sv << *stroke_linecap_ << "\""sv;
+        }
+        if (stroke_linejoin_) {
+            out << " stroke-linejoin=\""sv << *stroke_linejoin_ << "\""sv;
+        }
+    }
+
+private:
+    Owner& AsOwner() {
+        // static_cast безопасно преобразует *this к Owner&,
+        // если класс Owner — наследник PathProps
+        return static_cast<Owner&>(*this);
+    }
+
+    std::optional<Color> fill_color_;
+    std::optional<Color> stroke_color_;
+    std::optional<StrokeLineCap> stroke_linecap_;
+    std::optional<StrokeLineJoin> stroke_linejoin_;
+    std::optional<double> stroke_width_;
+};
+
 class Drawable {
 public:
     virtual ~Drawable() = default;
@@ -86,7 +174,7 @@ public:
  * Класс Circle моделирует элемент <circle> для отображения круга
  * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
  */
-class Circle final : public Object {
+class Circle final : public Object, public PathProps<Circle> {
 public:
     Circle& SetCenter(Point center);
     Circle& SetRadius(double radius);
@@ -102,7 +190,7 @@ private:
  * Класс Polyline моделирует элемент <polyline> для отображения ломаных линий
  * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline
  */
-class Polyline : public Object {
+class Polyline : public Object, public PathProps<Polyline> {
 public:
     // Добавляет очередную вершину к ломаной линии
     Polyline& AddPoint(Point point);
@@ -117,7 +205,7 @@ private:
  * Класс Text моделирует элемент <text> для отображения текста
  * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/text
  */
-class Text : public Object {
+class Text : public Object, public PathProps<Text> {
 public:
     // Задаёт координаты опорной точки (атрибуты x и y)
     Text& SetPosition(Point pos);
@@ -143,8 +231,8 @@ private:
     Point pos_;
     Point offset_;
     uint32_t size_ = 1;
-    std::string font_family_;
-    std::string font_weight_;
+    std::optional<std::string> font_family_;
+    std::optional<std::string> font_weight_;
     std::string data_;
 };
 
