@@ -63,6 +63,25 @@ private:
     virtual void RenderObject(const RenderContext& context) const = 0;
 };
 
+class ObjectContainer {
+public:
+    template <typename Obj>
+    void Add(Obj obj) {
+        AddPtr(std::make_unique<Obj>(std::move(obj)));
+    }
+
+    virtual void AddPtr(std::unique_ptr<Object>&& obj) = 0;
+
+protected:
+    ~ObjectContainer() = default;
+};
+
+class Drawable {
+public:
+    virtual ~Drawable() = default;
+    virtual void Draw(ObjectContainer& container) const = 0;
+};
+
 /*
  * Класс Circle моделирует элемент <circle> для отображения круга
  * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
@@ -88,9 +107,6 @@ public:
     // Добавляет очередную вершину к ломаной линии
     Polyline& AddPoint(Point point);
 
-    /*
-     * Прочие методы и данные, необходимые для реализации элемента <polyline>
-     */
 private:
     void RenderObject(const RenderContext& context) const override;
 
@@ -121,7 +137,6 @@ public:
     // Задаёт текстовое содержимое объекта (отображается внутри тега text)
     Text& SetData(std::string data);
 
-    // Прочие данные и методы, необходимые для реализации элемента <text>
 private:
     void RenderObject(const RenderContext& context) const override;
 
@@ -133,26 +148,12 @@ private:
     std::string data_;
 };
 
-class Document {
+class Document : public ObjectContainer {
 public:
-    /*
-     Метод Add добавляет в svg-документ любой объект-наследник svg::Object.
-     Пример использования:
-     Document doc;
-     doc.Add(Circle().SetCenter({20, 30}).SetRadius(15));
-    */
-    template <typename Obj>
-    void Add(Obj obj) {
-        objects_.emplace_back(std::make_unique<Obj>(std::move(obj)));
-    }
-
-    // Добавляет в svg-документ объект-наследник svg::Object
     void AddPtr(std::unique_ptr<Object>&& obj);
 
-    // Выводит в ostream svg-представление документа
     void Render(std::ostream& out) const;
 
-    // Прочие методы и данные, необходимые для реализации класса Document
 private:
     std::vector<std::unique_ptr<Object>> objects_;
 };
